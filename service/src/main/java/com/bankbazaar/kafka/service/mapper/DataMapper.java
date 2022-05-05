@@ -16,7 +16,7 @@ public interface DataMapper {
     Data dtoToDomain(DataDto dto);
 
     @Named("mapData")
-    public static List<String[]> mapData(List<String> data) {
+    public static List<String[]> mapData(String[] data) {
         List<String[]> newData = new ArrayList<>();
         for(String value : data)
         {
