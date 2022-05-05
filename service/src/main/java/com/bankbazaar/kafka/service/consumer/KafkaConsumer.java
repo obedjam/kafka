@@ -13,7 +13,7 @@ import java.io.Writer;
 @Slf4j
 @Service
 public class KafkaConsumer {
-    @KafkaListener(topics = "create_CSV")
+    @KafkaListener(topics = "create_CSV", groupId = "Partner_Integration_Kafka_Group")
     public void getData(Data data) throws IOException {
 
         try {

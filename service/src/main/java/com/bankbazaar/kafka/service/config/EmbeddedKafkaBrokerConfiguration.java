@@ -16,11 +16,10 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.kafka.test.EmbeddedKafkaBroker;
 
 @Configuration
-@Profile({"dev", "test"})
+//@Profile({"dev", "test"})
 public class EmbeddedKafkaBrokerConfiguration {
 
-  private static final String TMP_EMBEDDED_KAFKA_LOGS =
-      String.format("/tmp/embedded-kafka-logs-%1$s/", UUID.randomUUID());
+  private static final String TMP_EMBEDDED_KAFKA_LOGS = String.format("/tmp/embedded-kafka-logs-%1$s/", UUID.randomUUID());
   private static final String PORT = "port";
   private static final String LOG_DIRS = "log.dirs";
   private static final String LISTENERS = "listeners";
