@@ -27,7 +27,6 @@ public class EmbeddedKafkaBrokerConfiguration {
   private static final Integer ZOOKEEPER_PORT = 2181;
 
   private EmbeddedKafkaBroker embeddedKafkaBroker;
-
   /**
    * bean for the embeddedKafkaBroker.
    *
@@ -55,5 +54,4 @@ public class EmbeddedKafkaBrokerConfiguration {
       embeddedKafkaBroker.destroy();
     }
   }
-
 }
