@@ -7,7 +7,6 @@ import com.bankbazaar.kafka.dto.model.DataDto;
 import com.bankbazaar.kafka.service.model.Response;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.opencsv.CSVReader;
-import lombok.extern.slf4j.Slf4j;
 import org.awaitility.Durations;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;

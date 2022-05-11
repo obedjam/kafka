@@ -3,11 +3,9 @@ package com.bankbazaar.kafka.service.service;
 import com.bankbazaar.kafka.core.manager.FileStatusManager;
 import com.bankbazaar.kafka.dto.model.FileStatusDto;
 import com.bankbazaar.kafka.service.mapper.FileStatusMapper;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-@Slf4j
 @Service
 public class FileStatusService {
     @Autowired

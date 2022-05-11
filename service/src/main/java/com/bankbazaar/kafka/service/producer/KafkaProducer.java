@@ -6,15 +6,12 @@ import com.bankbazaar.kafka.service.mapper.DataMapper;
 import com.bankbazaar.kafka.dto.model.DataDto;
 import com.bankbazaar.kafka.service.model.Response;
 import com.bankbazaar.kafka.service.service.FileStatusService;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
 import java.util.Date;
 
-@Slf4j
 @Service
 public class KafkaProducer {
     private  static  final  String TOPIC = "Create_CSV";

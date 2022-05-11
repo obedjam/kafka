@@ -3,7 +3,6 @@ package com.bankbazaar.kafka.service.processor;
 import com.bankbazaar.kafka.core.model.Data;
 import com.bankbazaar.kafka.dto.model.FileStatusDto;
 import com.bankbazaar.kafka.service.service.FileStatusService;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.streams.kstream.KStream;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -11,7 +10,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.util.function.Function;
-@Slf4j
 @Service
 public class FileValidationProcessor {
 

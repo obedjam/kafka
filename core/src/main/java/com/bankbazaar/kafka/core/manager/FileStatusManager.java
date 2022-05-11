@@ -2,12 +2,10 @@ package com.bankbazaar.kafka.core.manager;
 
 import com.bankbazaar.kafka.core.model.FileStatusEntity;
 import com.bankbazaar.kafka.core.repository.FileStatusRepository;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
-@Slf4j
 @Service
 public class FileStatusManager {
 
