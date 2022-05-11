@@ -8,6 +8,7 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DataDto {
+    private Long id;
     @NotNull
     private String fileName;
     @NotNull

@@ -26,9 +26,9 @@ public class FileStatusEntity {
 
     @CreatedDate
     @Column(name = "created_date",updatable = false)
-    private Date createdOn;
+    private Date createdDate;
 
     @LastModifiedDate
     @Column(name = "modified_date",updatable = false)
-    private Date lastModifiedOn;
+    private Date lastModifiedDate;
 }

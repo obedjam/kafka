@@ -8,6 +8,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Data {
+    private Long id;
     private String fileName;
     private String[] headers;
     private List<String[]> data;
