@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
@@ -33,9 +34,11 @@ public class KafkaConsumer {
                         retryTemplate.execute(
                                 retryContext -> {
                                     try {
+                                        ClassLoader classLoader = getClass().getClassLoader();
                                         FileStatusDto fileData = new FileStatusDto();
                                         fileData.setId(value.getId());
-                                        Writer fileWriter = new FileWriter(value.getFileName(), false);
+                                        File file = new File(classLoader.getResource(".").getFile() + value.getFileName());
+                                        FileWriter fileWriter = new FileWriter(file,false);
                                         CSVWriter CsvWriter = new CSVWriter(fileWriter);
                                         CsvWriter.writeNext(value.getHeaders());
                                         for (String[] element : value.getData()) {

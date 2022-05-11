@@ -27,8 +27,9 @@ public class FileValidationProcessor {
             fileData.setStatus("IN_PROGRESS");
             fileStatusService.update(fileData);
 
-            File file = new File(value.getFileName());
-            if(file.exists() && !file.isDirectory())
+            ClassLoader classLoader = getClass().getClassLoader();
+            File file = new File(classLoader.getResource(".").getFile() + value.getFileName());
+            if(file.exists())
             {
                 fileData.setStatus("FAILURE");
                 fileStatusService.update(fileData);
