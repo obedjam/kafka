@@ -7,13 +7,12 @@ import com.bankbazaar.kafka.dto.model.DataDto;
 import com.bankbazaar.kafka.service.model.Response;
 import com.bankbazaar.kafka.service.service.FileStatusService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
 
-@Configuration
+@Service
 public class KafkaProducer {
     private  static  final  String TOPIC = "Create_CSV";
 

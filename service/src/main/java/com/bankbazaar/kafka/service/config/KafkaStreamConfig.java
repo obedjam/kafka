@@ -12,11 +12,11 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.stream.annotation.StreamRetryTemplate;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.retry.RetryPolicy;
 import org.springframework.retry.backoff.FixedBackOffPolicy;
 import org.springframework.retry.policy.SimpleRetryPolicy;
 import org.springframework.retry.support.RetryTemplate;
-import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -25,7 +25,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 @Slf4j
-@Service
+@Configuration
 public class KafkaStreamConfig {
     @Autowired
     private FileStatusService fileStatusService;
