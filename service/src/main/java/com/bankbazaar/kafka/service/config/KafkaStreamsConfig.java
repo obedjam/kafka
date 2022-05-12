@@ -26,7 +26,7 @@ import java.util.function.Function;
 
 @Slf4j
 @Configuration
-public class KafkaStreamConfig {
+public class KafkaStreamsConfig {
     @Autowired
     private FileStatusService fileStatusService;
 
@@ -55,26 +55,44 @@ public class KafkaStreamConfig {
      * Output data to File_Processor topic.
      */
     @Bean
-    public Function<KStream<String,Data>, KStream<String,Data>> fileProcessor()
+    public Function<KStream<String,Data>, KStream<String,Data>> fileProcessor(@Qualifier("streamRetryTemplate") RetryTemplate retryTemplate)
     {
-        return kStream -> kStream.filter((key, value) -> {
-            FileStatusEntity fileData = new FileStatusEntity();
-            fileData.setId(value.getId());
-            fileData.setStatus(Status.IN_PROGRESS);
-            fileStatusService.update(fileData);
+        return kStream -> kStream.filter((key, value) ->
+                {
+                    return retryTemplate.execute(
+                            retryContext -> {
+                                try {
+                                    FileStatusEntity fileData = new FileStatusEntity();
+                                    fileData.setId(value.getId());
+                                    fileData.setStatus(Status.IN_PROGRESS);
+                                    fileStatusService.update(fileData);
+                                    ClassLoader classLoader = getClass().getClassLoader();
+                                    File file = new File(classLoader.getResource(".").getFile() + value.getFileName());
+                                    if (file.exists()) {
+                                        fileData.setStatus(Status.FAILURE);
+                                        fileStatusService.update(fileData);
+                                        return false;
+                                    }
+                                    return true;
+                                }
+                                catch (Exception exception)
+                                {
+                                    log.error("retrying",exception);
+                                    throw exception;
+                                }
+                                },
 
-            ClassLoader classLoader = getClass().getClassLoader();
-            File file = new File(classLoader.getResource(".").getFile() + value.getFileName());
-            if(file.exists())
-            {
-                fileData.setStatus(Status.FAILURE);
-                fileStatusService.update(fileData);
-                return false;
-            }
-
-            return true;
-        });
-
+                            context -> {
+                                log.error("retries exhausted");
+                                FileStatusEntity fileData = new FileStatusEntity();
+                                fileData.setId(value.getId());
+                                fileData.setStatus(Status.ERROR);
+                                fileStatusService.update(fileData);
+                                return false;
+                            }
+                            );
+                }
+                );
     }
 
     /**
@@ -106,6 +124,7 @@ public class KafkaStreamConfig {
                                         CsvWriter.close();
                                         fileData.setStatus(Status.SUCCESS);
                                         fileStatusService.update(fileData);
+                                        log.error("process complete");
                                     }
                                     catch (Exception exception)
                                     {
@@ -114,6 +133,7 @@ public class KafkaStreamConfig {
                                     }
                                     return null;
                                 }, context -> {
+                                    log.error("retries exhausted");
                                     FileStatusEntity fileData = new FileStatusEntity();
                                     fileData.setId(value.getId());
                                     fileData.setStatus(Status.ERROR);

@@ -8,16 +8,9 @@
 package com.bankbazaar.kafka.service.config;
 import java.util.*;
 import javax.annotation.PreDestroy;
-
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cloud.stream.annotation.StreamRetryTemplate;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.test.EmbeddedKafkaBroker;
-import org.springframework.retry.RetryPolicy;
-import org.springframework.retry.backoff.FixedBackOffPolicy;
-import org.springframework.retry.policy.SimpleRetryPolicy;
-import org.springframework.retry.support.RetryTemplate;
 
 @Configuration
 //@Profile({"dev", "test"})
