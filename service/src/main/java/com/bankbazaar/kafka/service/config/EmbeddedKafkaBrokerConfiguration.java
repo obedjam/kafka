@@ -23,8 +23,6 @@ import org.springframework.retry.support.RetryTemplate;
 //@Profile({"dev", "test"})
 public class EmbeddedKafkaBrokerConfiguration {
 
-  @Value("${spring.datasource.maxRetries}")
-  private Integer maxRetries;
   private static final String TMP_EMBEDDED_KAFKA_LOGS =
           String.format("/tmp/embedded-kafka-logs-%1$s/", UUID.randomUUID());
   private static final String PORT = "port";
@@ -63,17 +61,5 @@ public class EmbeddedKafkaBrokerConfiguration {
     if (embeddedKafkaBroker != null) {
       embeddedKafkaBroker.destroy();
     }
-  }
-
-  @Bean
-  @StreamRetryTemplate
-  RetryTemplate streamRetryTemplate() {
-    RetryTemplate retryTemplate = new RetryTemplate();
-    RetryPolicy retryPolicy = new SimpleRetryPolicy(maxRetries);
-    FixedBackOffPolicy backOffPolicy = new FixedBackOffPolicy();
-    backOffPolicy.setBackOffPeriod(1);
-    retryTemplate.setBackOffPolicy(backOffPolicy);
-    retryTemplate.setRetryPolicy(retryPolicy);
-    return retryTemplate;
   }
 }

@@ -1,8 +1,9 @@
 package com.bankbazaar.kafka.service.service;
 
 import com.bankbazaar.kafka.core.manager.FileStatusManager;
-import com.bankbazaar.kafka.dto.model.FileStatusDto;
-import com.bankbazaar.kafka.service.mapper.FileStatusMapper;
+import com.bankbazaar.kafka.core.model.FileStatusEntity;
+import com.bankbazaar.kafka.core.model.Status;
+import com.bankbazaar.kafka.dto.model.DataDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -10,21 +11,28 @@ import org.springframework.stereotype.Service;
 public class FileStatusService {
     @Autowired
     private FileStatusManager fileStatusManager;
-    @Autowired
-    private FileStatusMapper mapper;
 
-    public FileStatusDto insert(FileStatusDto data)
+    public FileStatusEntity insert(FileStatusEntity data)
     {
-        return mapper.DomainToDto(fileStatusManager.insert(mapper.dtoToDomain(data)));
+        return fileStatusManager.insert(data);
     }
 
-    public FileStatusDto update(FileStatusDto data)
+    public FileStatusEntity update(FileStatusEntity data)
     {
-        return mapper.DomainToDto(fileStatusManager.update(mapper.dtoToDomain(data)));
+        return fileStatusManager.update(data);
     }
 
-    public FileStatusDto getEntry(Long id)
+    public FileStatusEntity getEntry(Long id)
     {
-        return mapper.DomainToDto(fileStatusManager.getEntry(id));
+        return fileStatusManager.getEntry(id);
+    }
+
+    public FileStatusEntity createEntry(DataDto data)
+    {
+        FileStatusEntity fileData = new FileStatusEntity();
+        fileData.setFileName(data.getFileName());
+        fileData.setStatus(Status.NEW);
+        FileStatusEntity response = insert(fileData);
+        return response;
     }
 }
