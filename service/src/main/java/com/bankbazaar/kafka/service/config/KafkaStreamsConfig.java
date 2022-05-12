@@ -124,7 +124,7 @@ public class KafkaStreamsConfig {
                                         CsvWriter.close();
                                         fileData.setStatus(Status.SUCCESS);
                                         fileStatusService.update(fileData);
-                                        log.error("process complete");
+                                        log.info("process complete");
                                     }
                                     catch (Exception exception)
                                     {
