@@ -34,7 +34,7 @@ public class EmbeddedKafkaBrokerConfiguration {
    */
   @Bean
   public EmbeddedKafkaBroker embeddedKafkaBroker() {
-    String[] topics = {"File_Processor", "Create_CSV"};
+    String[] topics = {"File_Processor", "Create_CSV", "Notification"};
     Map<String, String> brokerProperties = new HashMap<>();
     brokerProperties.put(LISTENERS, LISTENERS_VALUE);
     brokerProperties.put(PORT, KAFKA_PORT.toString());

@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.stream.annotation.StreamRetryTemplate;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.retry.RetryPolicy;
 import org.springframework.retry.backoff.FixedBackOffPolicy;
 import org.springframework.retry.policy.SimpleRetryPolicy;
@@ -26,6 +27,9 @@ import java.util.function.Function;
 @Slf4j
 @Configuration
 public class KafkaStreamsConfig {
+    private  static  final  String TOPIC = "Notification";
+    @Autowired
+    private KafkaTemplate<String, FileStatusEntity> kafkaTemplate;
     @Autowired
     private FileStatusService fileStatusService;
 
@@ -61,12 +65,11 @@ public class KafkaStreamsConfig {
                     Data result = retryTemplate.execute(
                             retryContext -> {
                                 try {
-
                                     fileStatusService.updateEntry(value,Status.IN_PROGRESS);
                                     ClassLoader classLoader = getClass().getClassLoader();
                                     File file = new File(classLoader.getResource(".").getFile() + value.getFileName());
                                     if (file.exists()) {
-                                        fileStatusService.updateEntry(value,Status.FAILURE);
+                                        this.kafkaTemplate.send(TOPIC,fileStatusService.updateEntry(value,Status.FAILURE));
                                         return null;
                                     }
                                     return value;
@@ -74,16 +77,13 @@ public class KafkaStreamsConfig {
                                 catch (Exception exception)
                                 {
                                     log.error("retrying",exception);
-                                    throw exception;
+                                    throw new RuntimeException(exception);
                                 }
                                 },
 
                             context -> {
                                 log.error("retries exhausted",context.getLastThrowable());
-                                FileStatusEntity fileData = new FileStatusEntity();
-                                fileData.setId(value.getId());
-                                fileData.setStatus(Status.ERROR);
-                                fileStatusService.update(fileData);
+                                this.kafkaTemplate.send(TOPIC,fileStatusService.updateEntry(value,Status.ERROR));
                                 return null;
                             }
                             );
@@ -117,8 +117,7 @@ public class KafkaStreamsConfig {
                                         }
                                         CsvWriter.close();
                                         fileWriter.close();
-                                        fileStatusService.updateEntry(value,Status.SUCCESS);
-                                        log.info("process complete");
+                                        this.kafkaTemplate.send(TOPIC,fileStatusService.updateEntry(value,Status.SUCCESS));
                                     }
                                     catch (Exception exception)
                                     {
@@ -128,7 +127,7 @@ public class KafkaStreamsConfig {
                                     return null;
                                 }, context -> {
                                     log.error("retries exhausted",context.getLastThrowable());
-                                    fileStatusService.updateEntry(value,Status.ERROR);
+                                    this.kafkaTemplate.send(TOPIC,fileStatusService.updateEntry(value,Status.ERROR));
                                     return null;
                                 }
                                 );
@@ -136,4 +135,14 @@ public class KafkaStreamsConfig {
         );
 
     }
+
+    @Bean
+    public Consumer<KStream<String,FileStatusEntity>> notification()
+    {
+        return kStream -> kStream.foreach((key, value) ->
+        {
+            log.info(value.getStatus().toString());
+        });
+    }
+
 }
