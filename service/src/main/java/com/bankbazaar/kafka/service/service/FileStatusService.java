@@ -1,6 +1,7 @@
 package com.bankbazaar.kafka.service.service;
 
 import com.bankbazaar.kafka.core.manager.FileStatusManager;
+import com.bankbazaar.kafka.core.model.Data;
 import com.bankbazaar.kafka.core.model.FileStatusEntity;
 import com.bankbazaar.kafka.core.model.Status;
 import com.bankbazaar.kafka.dto.model.DataDto;
@@ -34,5 +35,12 @@ public class FileStatusService {
         fileData.setStatus(Status.NEW);
         FileStatusEntity response = insert(fileData);
         return response;
+    }
+    public void updateEntry(Data data, Status status)
+    {
+        FileStatusEntity fileData = new FileStatusEntity();
+        fileData.setId(data.getId());
+        fileData.setStatus(status);
+        update(fileData);
     }
 }

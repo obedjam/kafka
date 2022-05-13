@@ -20,7 +20,6 @@ import org.springframework.retry.support.RetryTemplate;
 
 import java.io.File;
 import java.io.FileWriter;
-import java.io.IOException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -59,21 +58,18 @@ public class KafkaStreamsConfig {
     {
         return kStream -> kStream.filter((key, value) ->
                 {
-                    return retryTemplate.execute(
+                    Data result = retryTemplate.execute(
                             retryContext -> {
                                 try {
-                                    FileStatusEntity fileData = new FileStatusEntity();
-                                    fileData.setId(value.getId());
-                                    fileData.setStatus(Status.IN_PROGRESS);
-                                    fileStatusService.update(fileData);
+
+                                    fileStatusService.updateEntry(value,Status.IN_PROGRESS);
                                     ClassLoader classLoader = getClass().getClassLoader();
                                     File file = new File(classLoader.getResource(".").getFile() + value.getFileName());
                                     if (file.exists()) {
-                                        fileData.setStatus(Status.FAILURE);
-                                        fileStatusService.update(fileData);
-                                        return false;
+                                        fileStatusService.updateEntry(value,Status.FAILURE);
+                                        return null;
                                     }
-                                    return true;
+                                    return value;
                                 }
                                 catch (Exception exception)
                                 {
@@ -83,14 +79,15 @@ public class KafkaStreamsConfig {
                                 },
 
                             context -> {
-                                log.error("retries exhausted");
+                                log.error("retries exhausted",context.getLastThrowable());
                                 FileStatusEntity fileData = new FileStatusEntity();
                                 fileData.setId(value.getId());
                                 fileData.setStatus(Status.ERROR);
                                 fileStatusService.update(fileData);
-                                return false;
+                                return null;
                             }
                             );
+                    return result != null;
                 }
                 );
     }
@@ -107,13 +104,10 @@ public class KafkaStreamsConfig {
     {
         return kStream -> kStream.foreach((key, value) ->
                 {
-                    try {
                         retryTemplate.execute(
                                 retryContext -> {
-                                    try {
+                                    try{
                                         ClassLoader classLoader = getClass().getClassLoader();
-                                        FileStatusEntity fileData = new FileStatusEntity();
-                                        fileData.setId(value.getId());
                                         File file = new File(classLoader.getResource(".").getFile() + value.getFileName());
                                         FileWriter fileWriter = new FileWriter(file,false);
                                         CSVWriter CsvWriter = new CSVWriter(fileWriter);
@@ -122,28 +116,22 @@ public class KafkaStreamsConfig {
                                             CsvWriter.writeNext(element);
                                         }
                                         CsvWriter.close();
-                                        fileData.setStatus(Status.SUCCESS);
-                                        fileStatusService.update(fileData);
+                                        fileWriter.close();
+                                        fileStatusService.updateEntry(value,Status.SUCCESS);
                                         log.info("process complete");
                                     }
                                     catch (Exception exception)
                                     {
                                         log.error("retrying",exception);
-                                        throw exception;
+                                        throw new RuntimeException(exception);
                                     }
                                     return null;
                                 }, context -> {
-                                    log.error("retries exhausted");
-                                    FileStatusEntity fileData = new FileStatusEntity();
-                                    fileData.setId(value.getId());
-                                    fileData.setStatus(Status.ERROR);
-                                    fileStatusService.update(fileData);
+                                    log.error("retries exhausted",context.getLastThrowable());
+                                    fileStatusService.updateEntry(value,Status.ERROR);
                                     return null;
                                 }
                                 );
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
                 }
         );
 
