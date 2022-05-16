@@ -37,10 +37,10 @@ public class FileStatusService {
     {
         return fileStatusManager.getEntry(id).get();
     }
-    public FileStatusEntity updateEntry(Data data, Status status)
+    public FileStatusEntity updateEntry(Long id, Status status)
     {
         FileStatusEntity fileData = new FileStatusEntity();
-        fileData.setId(data.getId());
+        fileData.setId(id);
         fileData.setStatus(status);
         FileStatusEntity response = update(fileData);
         return response;

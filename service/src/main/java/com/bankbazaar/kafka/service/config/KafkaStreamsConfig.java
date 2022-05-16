@@ -1,11 +1,11 @@
 package com.bankbazaar.kafka.service.config;
 
 import com.bankbazaar.kafka.core.model.Data;
-import com.bankbazaar.kafka.core.model.FileStatusEntity;
 import com.bankbazaar.kafka.core.model.Status;
 import com.bankbazaar.kafka.service.service.FileStatusService;
 import com.opencsv.CSVWriter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.streams.kstream.Branched;
 import org.apache.kafka.streams.kstream.KStream;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -13,7 +13,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.stream.annotation.StreamRetryTemplate;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.retry.RetryPolicy;
 import org.springframework.retry.backoff.FixedBackOffPolicy;
 import org.springframework.retry.policy.SimpleRetryPolicy;
@@ -22,14 +21,10 @@ import org.springframework.retry.support.RetryTemplate;
 import java.io.File;
 import java.io.FileWriter;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 @Slf4j
 @Configuration
 public class KafkaStreamsConfig {
-    private  static  final  String TOPIC = "Notification";
-    @Autowired
-    private KafkaTemplate<String, FileStatusEntity> kafkaTemplate;
     @Autowired
     private FileStatusService fileStatusService;
 
@@ -57,39 +52,61 @@ public class KafkaStreamsConfig {
      * Set status to FAILURE if file already exists.
      * Output data to File_Processor topic.
      */
-    @Bean
-    public Function<KStream<String,Data>, KStream<String,Data>> fileProcessor(@Qualifier("streamRetryTemplate") RetryTemplate retryTemplate)
-    {
-        return kStream -> kStream.filter((key, value) ->
-                {
-                    Data result = retryTemplate.execute(
-                            retryContext -> {
-                                try {
-                                    fileStatusService.updateEntry(value,Status.IN_PROGRESS);
-                                    ClassLoader classLoader = getClass().getClassLoader();
-                                    File file = new File(classLoader.getResource(".").getFile() + value.getFileName());
-                                    if (file.exists()) {
-                                        this.kafkaTemplate.send(TOPIC,fileStatusService.updateEntry(value,Status.FAILURE));
-                                        return null;
-                                    }
-                                    return value;
-                                }
-                                catch (Exception exception)
-                                {
-                                    log.error("retrying",exception);
-                                    throw new RuntimeException(exception);
-                                }
-                                },
 
-                            context -> {
-                                log.error("retries exhausted",context.getLastThrowable());
-                                this.kafkaTemplate.send(TOPIC,fileStatusService.updateEntry(value,Status.ERROR));
-                                return null;
-                            }
-                            );
-                    return result != null;
-                }
-                );
+    @Bean
+    public Consumer<KStream<String,Data>> fileProcessor(@Qualifier("streamRetryTemplate") RetryTemplate retryTemplate)
+    {
+        return kStream -> kStream.split()
+                .branch(
+                        (key, value) ->
+                                retryTemplate.execute(
+                                    retryContext -> {
+                                        try {
+                                            fileStatusService.updateEntry(value.getId(),Status.IN_PROGRESS);
+                                            ClassLoader classLoader = getClass().getClassLoader();
+                                            File file = new File(classLoader.getResource(".").getFile() + value.getFileName());
+                                            if (file.exists()) {
+                                                fileStatusService.updateEntry(value.getId(),Status.FAILURE);
+                                                return false;
+                                            }
+                                            return true;
+                                        }
+                                        catch (Exception exception)
+                                        {
+                                            log.error("retrying",exception);
+                                            throw new RuntimeException(exception);
+                                        }
+                                    },
+                                    context -> {
+                                        log.error("retries exhausted",context.getLastThrowable());
+                                        fileStatusService.updateEntry(value.getId(),Status.ERROR);
+                                        return false;
+                                    }
+                            ),
+                        Branched.withConsumer(stream -> stream.to("File_Processor"))
+                )
+                .branch(
+                        (key, value) ->
+                                retryTemplate.execute(
+                                        retryContext -> {
+                                            try {
+                                                Status result = fileStatusService.getEntry(value.getId()).getStatus();
+                                                return result == Status.FAILURE || result == Status.ERROR;
+                                            }
+                                            catch (Exception exception)
+                                            {
+                                                log.error("retrying",exception);
+                                                throw new RuntimeException(exception);
+                                            }
+                                        },
+                                        context -> {
+                                            log.error("retries exhausted",context.getLastThrowable());
+                                            return false;
+                                        }
+
+                                ),
+                        Branched.withConsumer(stream -> stream.to("Notification"))
+                        );
     }
 
     /**
@@ -102,46 +119,66 @@ public class KafkaStreamsConfig {
     @Bean
     public Consumer<KStream<String,Data>> consumer(@Qualifier("streamRetryTemplate") RetryTemplate retryTemplate)
     {
-        return kStream -> kStream.foreach((key, value) ->
-                {
-                        retryTemplate.execute(
-                                retryContext -> {
-                                    try{
-                                        ClassLoader classLoader = getClass().getClassLoader();
-                                        File file = new File(classLoader.getResource(".").getFile() + value.getFileName());
-                                        FileWriter fileWriter = new FileWriter(file,false);
-                                        CSVWriter CsvWriter = new CSVWriter(fileWriter);
-                                        CsvWriter.writeNext(value.getHeaders());
-                                        for (String[] element : value.getData()) {
-                                            CsvWriter.writeNext(element);
+        return kStream -> kStream.split()
+                .branch(
+                        (key, value) ->
+                                retryTemplate.execute(
+                                        retryContext -> {
+                                            try{
+                                                ClassLoader classLoader = getClass().getClassLoader();
+                                                File file = new File(classLoader.getResource(".").getFile() + value.getFileName());
+                                                FileWriter fileWriter = new FileWriter(file,false);
+                                                CSVWriter CsvWriter = new CSVWriter(fileWriter);
+                                                CsvWriter.writeNext(value.getHeaders());
+                                                for (String[] element : value.getData()) {
+                                                    CsvWriter.writeNext(element);
+                                                }
+                                                CsvWriter.close();
+                                                fileWriter.close();
+                                                fileStatusService.updateEntry(value.getId(),Status.SUCCESS);
+                                            }
+                                            catch (Exception exception)
+                                            {
+                                                log.error("retrying",exception);
+                                                throw new RuntimeException(exception);
+                                            }
+                                            return false;
+                                        }, context -> {
+                                            log.error("retries exhausted",context.getLastThrowable());
+                                            fileStatusService.updateEntry(value.getId(),Status.ERROR);
+                                            return false;
                                         }
-                                        CsvWriter.close();
-                                        fileWriter.close();
-                                        this.kafkaTemplate.send(TOPIC,fileStatusService.updateEntry(value,Status.SUCCESS));
-                                    }
-                                    catch (Exception exception)
-                                    {
-                                        log.error("retrying",exception);
-                                        throw new RuntimeException(exception);
-                                    }
-                                    return null;
-                                }, context -> {
-                                    log.error("retries exhausted",context.getLastThrowable());
-                                    this.kafkaTemplate.send(TOPIC,fileStatusService.updateEntry(value,Status.ERROR));
-                                    return null;
-                                }
-                                );
-                }
-        );
-
+                                )
+                )
+                .branch(
+                        (key, value) ->
+                                retryTemplate.execute(
+                                        retryContext -> {
+                                            try {
+                                                Status result = fileStatusService.getEntry(value.getId()).getStatus();
+                                                return result == Status.SUCCESS || result == Status.ERROR;
+                                            }
+                                            catch (Exception exception)
+                                            {
+                                                log.error("retrying",exception);
+                                                throw new RuntimeException(exception);
+                                            }
+                                        },
+                                        context -> {
+                                            log.error("retries exhausted",context.getLastThrowable());
+                                            return false;
+                                        }
+                                ),
+                        Branched.withConsumer(stream -> stream.to("Notification"))
+                );
     }
 
     @Bean
-    public Consumer<KStream<String,FileStatusEntity>> notification()
+    public Consumer<KStream<String,Data>> notification()
     {
         return kStream -> kStream.foreach((key, value) ->
         {
-            log.info(value.getStatus().toString());
+            log.info(fileStatusService.getEntry(value.getId()).getStatus().toString());
         });
     }
 
