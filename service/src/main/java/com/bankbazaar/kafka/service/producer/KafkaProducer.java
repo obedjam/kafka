@@ -20,7 +20,6 @@ public class KafkaProducer {
     private  KafkaTemplate<String, Data> kafkaTemplate;
     @Autowired
     private FileStatusService fileStatusService;
-
     @Autowired
     private DataMapper mapper;
 

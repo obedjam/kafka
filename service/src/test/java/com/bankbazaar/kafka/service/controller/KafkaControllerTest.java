@@ -1,15 +1,14 @@
 package com.bankbazaar.kafka.service.controller;
 
-import com.bankbazaar.kafka.core.model.FileStatusEntity;
-import com.bankbazaar.kafka.core.model.Status;
 import com.bankbazaar.kafka.core.repository.FileStatusRepository;
 import com.bankbazaar.kafka.dto.model.DataDto;
 import com.bankbazaar.kafka.service.model.Response;
+import com.bankbazaar.kafka.service.producer.KafkaProducer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.opencsv.CSVReader;
+import lombok.extern.slf4j.Slf4j;
 import org.awaitility.Durations;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,50 +24,75 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
+@Slf4j
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles({"test"})
 @AutoConfigureMockMvc
-class KafkaControllerTest {
+public class KafkaControllerTest{
 
     @Autowired
     protected MockMvc mvc;
-    @InjectMocks
-    private KafkaController kafkaController;
+
     @Autowired
     private FileStatusRepository fileStatusRepository;
+
+    @Autowired
+    private KafkaProducer kafkaProducer;
 
     @Test
     void userController() throws Exception {
         ClassLoader classLoader = getClass().getClassLoader();
 
+        /**
+         * Create file object dataDto1
+         * Assert file test1.csv doesn't exist
+         * Feed dataDto1 to controller
+         */
         DataDto dataDto1 = createFileObject("test1.csv");
         File file1 = new File(classLoader.getResource(".").getFile() + dataDto1.getFileName());
         assertFalse(file1.exists());
         Response responseData1 = consumeApi(dataDto1);
 
+        /**
+         * Create file object dataDto2
+         * Assert file test2.csv doesn't exist
+         * Feed dataDto2 to controller
+         */
         DataDto dataDto2 = createFileObject("test2.csv");
         File file2 = new File(classLoader.getResource(".").getFile() + dataDto2.getFileName());
         assertFalse(file2.exists());
         Response responseData2 = consumeApi(dataDto2);
 
+        /**
+         * Assert file test1.csv is created
+         * Validate contents
+         */
         await().atMost(Durations.TEN_SECONDS).until(file1::exists);
         validateTrue(responseData1, dataDto1, file1);
 
+        /**
+         * Assert file test2.csv is created
+         * Validate contents
+         */
         await().atMost(Durations.TEN_SECONDS).until(file2::exists);
         validateTrue(responseData2, dataDto2, file2);
 
+        /**
+         * Create file object dataDto3
+         * Assert file test2.csv already exist
+         * Feed dataDto3 to controller
+         */
         DataDto dataDto3 = createFileObject("test2.csv");
         File file3 = new File(classLoader.getResource(".").getFile() + dataDto3.getFileName());
-        Response responseData3 = consumeApi(dataDto3);
-
-        int index = fileStatusRepository.getById(responseData3.getExecutionId()).getStatus().ordinal();
-        while (index<=Status.IN_PROGRESS.ordinal())
-        {
-            index = fileStatusRepository.getById(responseData3.getExecutionId()).getStatus().ordinal();
-        }
         assertTrue(file3.exists());
-        validateFalse(responseData3, dataDto3, file3);
+        consumeApi(dataDto3);
+
+        /**
+         * Create dataDto4 with empty fields
+         * Validate 400 bad request response
+         */
+        DataDto dataDto4 = createBadFileObject();
+        consumeBadApi(dataDto4);
 
         file1.delete();
         file2.delete();
@@ -83,6 +107,15 @@ class KafkaControllerTest {
         dataDto.setData(data);
         return dataDto;
     }
+    private DataDto createBadFileObject()
+    {
+        String [] data= new String[0];
+        DataDto dataDto = new DataDto();
+        dataDto.setFileName("");
+        dataDto.setHeaders("");
+        dataDto.setData(data);
+        return dataDto;
+    }
 
     private Response consumeApi(DataDto dataDto) throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
@@ -93,6 +126,14 @@ class KafkaControllerTest {
 
         Response data = objectMapper.readValue(response.getResponse().getContentAsString(), Response.class);
         return data;
+    }
+
+    private void consumeBadApi(DataDto dataDto) throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        mvc.perform(post("/")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(dataDto)))
+                .andExpect(status().is(400));
     }
 
     private void validateTrue(Response responseData, DataDto dataDto, File fileCsv) throws Exception {
@@ -111,29 +152,5 @@ class KafkaControllerTest {
         }
         assertEquals(i,dataDto.getData().length);
 
-        assertEquals(responseData.getStatus(),"NEW");;
-        FileStatusEntity data = fileStatusRepository.getById(responseData.getExecutionId());
-        assertEquals(data.getStatus(), Status.SUCCESS);
-    }
-
-    private void validateFalse(Response responseData, DataDto dataDto, File fileCsv) throws Exception {
-        FileReader filereader = new FileReader(fileCsv);
-        CSVReader csvReader = new CSVReader(filereader);
-        String[] nextRecord;
-        nextRecord = csvReader.readNext();
-
-        assertArrayEquals(nextRecord, dataDto.getHeaders().split(","));
-
-        int i=0;
-        while ((nextRecord = csvReader.readNext()) != null)
-        {
-            assertArrayEquals(nextRecord, dataDto.getData()[i].split("\\|"));
-            i++;
-        }
-        assertEquals(i,dataDto.getData().length);
-
-        assertEquals(responseData.getStatus(),"NEW");;
-        FileStatusEntity data = fileStatusRepository.getById(responseData.getExecutionId());
-        assertEquals(data.getStatus(), Status.FAILURE);
     }
 }

@@ -30,9 +30,8 @@ public class FileStatusManager {
         }
         return fileStatusRepository.save(newData);
     }
-
-    public FileStatusEntity getEntry(Long id)
+    public Optional<FileStatusEntity> getEntry(Long id)
     {
-        return fileStatusRepository.getById(id);
+        return fileStatusRepository.findById(id);
     }
 }

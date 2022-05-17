@@ -1,6 +1,5 @@
 package com.bankbazaar.kafka.core.model;
 
-import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -10,7 +9,6 @@ import java.util.Date;
 
 @lombok.Data
 @NoArgsConstructor
-@AllArgsConstructor
 @Entity
 @Table(name = "file_status")
 public class FileStatusEntity {
@@ -25,10 +23,10 @@ public class FileStatusEntity {
     private Status status;
 
     @CreatedDate
-    @Column(name = "created_date",updatable = false)
+    @Column(name = "createdDate",updatable = false)
     private Date createdDate;
 
     @LastModifiedDate
-    @Column(name = "modified_date",updatable = false)
+    @Column(name = "lastModifiedDate",updatable = false)
     private Date lastModifiedDate;
 }
