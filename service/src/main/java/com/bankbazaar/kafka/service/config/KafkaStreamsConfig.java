@@ -5,8 +5,12 @@ import com.bankbazaar.kafka.core.model.Status;
 import com.bankbazaar.kafka.service.service.FileStatusService;
 import com.opencsv.CSVWriter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.common.serialization.Serde;
+import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.Branched;
 import org.apache.kafka.streams.kstream.KStream;
+import org.apache.kafka.streams.kstream.Produced;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,11 +24,12 @@ import org.springframework.retry.support.RetryTemplate;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.io.Serializable;
 import java.util.function.Consumer;
 
 @Slf4j
 @Configuration
-public class KafkaStreamsConfig {
+public class KafkaStreamsConfig implements Serializable {
     @Autowired
     private FileStatusService fileStatusService;
 
@@ -54,59 +59,34 @@ public class KafkaStreamsConfig {
      */
 
     @Bean
-    public Consumer<KStream<String,Data>> fileProcessor(@Qualifier("streamRetryTemplate") RetryTemplate retryTemplate)
+    public Consumer<KStream<String, Data>>fileProcessor(@Qualifier("streamRetryTemplate") RetryTemplate retryTemplate)
     {
-        return kStream -> kStream.split()
-                .branch(
-                        (key, value) ->
-                                retryTemplate.execute(
-                                    retryContext -> {
-                                        try {
-                                            fileStatusService.updateEntry(value.getId(),Status.IN_PROGRESS);
-                                            ClassLoader classLoader = getClass().getClassLoader();
-                                            File file = new File(classLoader.getResource(".").getFile() + value.getFileName());
-                                            if (file.exists()) {
-                                                fileStatusService.updateEntry(value.getId(),Status.FAILURE);
-                                                return false;
-                                            }
-                                            return true;
-                                        }
-                                        catch (Exception exception)
-                                        {
-                                            log.error("retrying",exception);
-                                            throw new RuntimeException(exception);
-                                        }
-                                    },
-                                    context -> {
-                                        log.error("retries exhausted",context.getLastThrowable());
-                                        fileStatusService.updateEntry(value.getId(),Status.ERROR);
-                                        return false;
-                                    }
-                            ),
-                        Branched.withConsumer(stream -> stream.to("File_Processor"))
-                )
-                .branch(
-                        (key, value) ->
+        return kStream -> kStream.map((key, value) ->
                                 retryTemplate.execute(
                                         retryContext -> {
-                                            try {
-                                                Status result = fileStatusService.getEntry(value.getId()).getStatus();
-                                                return result == Status.FAILURE || result == Status.ERROR;
-                                            }
-                                            catch (Exception exception)
-                                            {
-                                                log.error("retrying",exception);
-                                                throw new RuntimeException(exception);
-                                            }
+                                                fileStatusService.updateEntry(value.getId(),Status.IN_PROGRESS);
+                                                ClassLoader classLoader = getClass().getClassLoader();
+                                                File file = new File(classLoader.getResource(".").getFile() + value.getFileName());
+                                                if (file.exists()) {
+                                                    fileStatusService.updateEntry(value.getId(),Status.FAILURE);
+                                                }
+                                            return new KeyValue<>(key,value);
                                         },
                                         context -> {
                                             log.error("retries exhausted",context.getLastThrowable());
-                                            return false;
+                                            fileStatusService.updateEntry(value.getId(),Status.ERROR);
+                                            return new KeyValue<>(key,value);
                                         }
-
-                                ),
-                        Branched.withConsumer(stream -> stream.to("Notification"))
-                        );
+                                )
+                ).filter((key, value) -> value != null).split()
+                .branch(
+                        (key, value) -> fileStatusService.getEntry(value.getId()).getStatus().ordinal()<=2,
+                        Branched.withConsumer(stream -> stream.to("File_Processor",Produced.with(Serdes.String(), DataSerdes.DataSerde())))
+                )
+                .branch(
+                        (key, value) -> fileStatusService.getEntry(value.getId()).getStatus().ordinal()>2,
+                        Branched.withConsumer(stream -> stream.to("Notification",Produced.with(Serdes.String(), DataSerdes.DataSerde())))
+                );
     }
 
     /**
@@ -119,58 +99,36 @@ public class KafkaStreamsConfig {
     @Bean
     public Consumer<KStream<String,Data>> consumer(@Qualifier("streamRetryTemplate") RetryTemplate retryTemplate)
     {
-        return kStream -> kStream.split()
-                .branch(
-                        (key, value) ->
-                                retryTemplate.execute(
-                                        retryContext -> {
-                                            try{
-                                                ClassLoader classLoader = getClass().getClassLoader();
-                                                File file = new File(classLoader.getResource(".").getFile() + value.getFileName());
-                                                FileWriter fileWriter = new FileWriter(file,false);
-                                                CSVWriter CsvWriter = new CSVWriter(fileWriter);
-                                                CsvWriter.writeNext(value.getHeaders());
-                                                for (String[] element : value.getData()) {
-                                                    CsvWriter.writeNext(element);
-                                                }
-                                                CsvWriter.close();
-                                                fileWriter.close();
-                                                fileStatusService.updateEntry(value.getId(),Status.SUCCESS);
-                                            }
-                                            catch (Exception exception)
-                                            {
-                                                log.error("retrying",exception);
-                                                throw new RuntimeException(exception);
-                                            }
-                                            return false;
-                                        }, context -> {
-                                            log.error("retries exhausted",context.getLastThrowable());
-                                            fileStatusService.updateEntry(value.getId(),Status.ERROR);
-                                            return false;
+        return kStream -> kStream.map((key, value) ->
+                        retryTemplate.execute(
+                                retryContext -> {
+                                    try{
+                                        ClassLoader classLoader = getClass().getClassLoader();
+                                        File file = new File(classLoader.getResource(".").getFile() + value.getFileName());
+                                        FileWriter fileWriter = new FileWriter(file,false);
+                                        CSVWriter CsvWriter = new CSVWriter(fileWriter);
+                                        CsvWriter.writeNext(value.getHeaders());
+                                        for (String[] element : value.getData()) {
+                                            CsvWriter.writeNext(element);
                                         }
+                                        CsvWriter.close();
+                                        fileWriter.close();
+                                        fileStatusService.updateEntry(value.getId(),Status.SUCCESS);
+                                        return new KeyValue<>(key,value);
+                                    }
+                                    catch (Exception exception)
+                                    {
+                                        log.error("retrying",exception);
+                                        throw new RuntimeException(exception);
+                                    }
+                                }, context -> {
+                                    log.error("retries exhausted",context.getLastThrowable());
+                                    fileStatusService.updateEntry(value.getId(),Status.ERROR);
+                                    return new KeyValue<>(key,value);
+                                }
                                 )
-                )
-                .branch(
-                        (key, value) ->
-                                retryTemplate.execute(
-                                        retryContext -> {
-                                            try {
-                                                Status result = fileStatusService.getEntry(value.getId()).getStatus();
-                                                return result == Status.SUCCESS || result == Status.ERROR;
-                                            }
-                                            catch (Exception exception)
-                                            {
-                                                log.error("retrying",exception);
-                                                throw new RuntimeException(exception);
-                                            }
-                                        },
-                                        context -> {
-                                            log.error("retries exhausted",context.getLastThrowable());
-                                            return false;
-                                        }
-                                ),
-                        Branched.withConsumer(stream -> stream.to("Notification"))
-                );
+        ).filter((key, value) -> value != null).to("Notification",Produced.with(Serdes.String(), DataSerdes.DataSerde()));
+
     }
 
     @Bean
@@ -181,5 +139,4 @@ public class KafkaStreamsConfig {
             log.info(fileStatusService.getEntry(value.getId()).getStatus().toString());
         });
     }
-
 }
