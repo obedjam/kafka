@@ -26,6 +26,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.Serializable;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 @Slf4j
 @Configuration
@@ -101,7 +102,7 @@ public class KafkaStreamsConfig implements Serializable {
      * Retry a maximum of 1 time if exception occurs;
      */
     @Bean
-    public Consumer<KStream<String,Data>> consumer(@Qualifier("streamRetryTemplate") RetryTemplate retryTemplate)
+    public Function<KStream<String,Data>, KStream<String,Data>> consumer(@Qualifier("streamRetryTemplate") RetryTemplate retryTemplate)
     {
         return kStream -> kStream.map((key, value) ->
                         retryTemplate.execute(
@@ -133,7 +134,7 @@ public class KafkaStreamsConfig implements Serializable {
                                     return new KeyValue<>(key,value);
                                 }
                                 )
-        ).filter((key, value) -> value != null).to("Notification",Produced.with(Serdes.String(), DataSerdes.DataSerde()));
+        ).filter((key, value) -> value != null);
 
     }
 

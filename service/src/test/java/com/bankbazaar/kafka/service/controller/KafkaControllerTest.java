@@ -1,9 +1,7 @@
 package com.bankbazaar.kafka.service.controller;
 
-import com.bankbazaar.kafka.core.repository.FileStatusRepository;
 import com.bankbazaar.kafka.dto.model.DataDto;
 import com.bankbazaar.kafka.service.model.Response;
-import com.bankbazaar.kafka.service.producer.KafkaProducer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.opencsv.CSVReader;
 import lombok.extern.slf4j.Slf4j;
@@ -32,12 +30,6 @@ public class KafkaControllerTest{
 
     @Autowired
     protected MockMvc mvc;
-
-    @Autowired
-    private FileStatusRepository fileStatusRepository;
-
-    @Autowired
-    private KafkaProducer kafkaProducer;
 
     @Test
     void userController() throws Exception {
@@ -93,6 +85,8 @@ public class KafkaControllerTest{
          */
         DataDto dataDto4 = createBadFileObject();
         consumeBadApi(dataDto4);
+
+        Thread.sleep(1000);
 
         file1.delete();
         file2.delete();
