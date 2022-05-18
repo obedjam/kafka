@@ -19,6 +19,10 @@
         <kafka-streams.version>3.1.0</kafka-streams.version>
         <awaitility.version>4.2.0</awaitility.version>
         <spring.cloud.version>2021.0.2</spring.cloud.version>
+        <gson.version>2.9.0</gson.version>
+        <embedded-redis.version>0.7.3</embedded-redis.version>
+        <spring-data-redis.version>2.7.0</spring-data-redis.version>
+        <lettuce-core.version>6.1.8.RELEASE</lettuce-core.version>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -99,8 +103,22 @@
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
-            <version>2.9.0</version>
+            <version>${gson.version}</version>
         </dependency>
-    </dependencies>
-
+        <dependency>
+            <groupId>it.ozimov</groupId>
+            <artifactId>embedded-redis</artifactId>
+            <version>${embedded-redis.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.data</groupId>
+            <artifactId>spring-data-redis</artifactId>
+            <version>${spring-data-redis.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.lettuce</groupId>
+            <artifactId>lettuce-core</artifactId>
+            <version>${lettuce-core.version}</version>
+        </dependency>
+     </dependencies>
 </project>

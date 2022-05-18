@@ -54,6 +54,23 @@ public class KafkaControllerTest{
         Response responseData1 = consumeApi(dataDto1);
 
         /**
+         * Assert file test1.csv is created
+         * Validate contents
+         */
+        await().atMost(Durations.TEN_SECONDS).until(file1::exists);
+        validateTrue(responseData1, dataDto1, file1);
+
+        /**
+         * Create file object dataDto3
+         * Assert file test2.csv already exist
+         * Feed dataDto3 to controller
+         */
+        DataDto dataDto3 = createFileObject("test1.csv");
+        File file3 = new File(classLoader.getResource(".").getFile() + dataDto3.getFileName());
+        assertTrue(file3.exists());
+        consumeApi(dataDto3);
+
+        /**
          * Create file object dataDto2
          * Assert file test2.csv doesn't exist
          * Feed dataDto2 to controller
@@ -64,28 +81,11 @@ public class KafkaControllerTest{
         Response responseData2 = consumeApi(dataDto2);
 
         /**
-         * Assert file test1.csv is created
-         * Validate contents
-         */
-        await().atMost(Durations.TEN_SECONDS).until(file1::exists);
-        validateTrue(responseData1, dataDto1, file1);
-
-        /**
          * Assert file test2.csv is created
          * Validate contents
          */
         await().atMost(Durations.TEN_SECONDS).until(file2::exists);
         validateTrue(responseData2, dataDto2, file2);
-
-        /**
-         * Create file object dataDto3
-         * Assert file test2.csv already exist
-         * Feed dataDto3 to controller
-         */
-        DataDto dataDto3 = createFileObject("test2.csv");
-        File file3 = new File(classLoader.getResource(".").getFile() + dataDto3.getFileName());
-        assertTrue(file3.exists());
-        consumeApi(dataDto3);
 
         /**
          * Create dataDto4 with empty fields

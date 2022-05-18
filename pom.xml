@@ -21,7 +21,7 @@
 	<description>kafka demo project</description>
 	<properties>
 		<java.version>11</java.version>
-		<spring-boot-starter-validation.version>2.6.6</spring-boot-starter-validation.version>
+		<spring-boot-starter-validation.version>2.6.7</spring-boot-starter-validation.version>
 		<mapstruct.version>1.5.0.RC1</mapstruct.version>
 	</properties>
 	<dependencies>
