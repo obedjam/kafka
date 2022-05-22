@@ -1,5 +1,6 @@
 package com.bankbazaar.kafka.service.controller;
 
+import com.bankbazaar.kafka.core.model.Status;
 import com.bankbazaar.kafka.dto.model.DataDto;
 import com.bankbazaar.kafka.service.model.Response;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,6 +22,7 @@ import java.io.FileReader;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 @Slf4j
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -50,7 +52,8 @@ public class KafkaControllerTest{
          * Validate contents
          */
         await().atMost(Durations.TEN_SECONDS).until(file1::exists);
-        validateTrue(responseData1, dataDto1, file1);
+        validateTrue(dataDto1, file1);
+        assertEquals(consumeApi(responseData1.getExecutionId()), Status.SUCCESS);
 
         /**
          * Create file object dataDto3
@@ -77,7 +80,8 @@ public class KafkaControllerTest{
          * Validate contents
          */
         await().atMost(Durations.TEN_SECONDS).until(file2::exists);
-        validateTrue(responseData2, dataDto2, file2);
+        validateTrue(dataDto2, file2);
+        assertEquals(consumeApi(responseData2.getExecutionId()), Status.SUCCESS);
 
         /**
          * Create dataDto4 with empty fields
@@ -86,7 +90,9 @@ public class KafkaControllerTest{
         DataDto dataDto4 = createBadFileObject();
         consumeBadApi(dataDto4);
 
-        Thread.sleep(1000);
+        Thread.sleep(10000);
+        assertEquals(consumeApi(responseData1.getExecutionId()), Status.SUCCESS);
+        assertEquals(consumeApi(responseData2.getExecutionId()), Status.SUCCESS);
 
         file1.delete();
         file2.delete();
@@ -122,6 +128,14 @@ public class KafkaControllerTest{
         return data;
     }
 
+    private Status consumeApi(Long id) throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        MvcResult response = mvc.perform(get("/?id="+id.toString()))
+                .andExpect(status().is(200)).andReturn();
+
+        Status data = objectMapper.readValue(response.getResponse().getContentAsString(), Status.class);
+        return data;
+    }
     private void consumeBadApi(DataDto dataDto) throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         mvc.perform(post("/")
@@ -130,7 +144,7 @@ public class KafkaControllerTest{
                 .andExpect(status().is(400));
     }
 
-    private void validateTrue(Response responseData, DataDto dataDto, File fileCsv) throws Exception {
+    private void validateTrue(DataDto dataDto, File fileCsv) throws Exception {
         FileReader filereader = new FileReader(fileCsv);
         CSVReader csvReader = new CSVReader(filereader);
         String[] nextRecord;
