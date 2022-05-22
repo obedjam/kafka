@@ -3,9 +3,9 @@ package com.bankbazaar.kafka.service.config;
 import com.bankbazaar.kafka.core.model.Data;
 import com.bankbazaar.kafka.core.model.Status;
 import com.bankbazaar.kafka.service.service.FileStatusService;
+import com.bankbazaar.kafka.service.service.StatusCacheService;
 import com.opencsv.CSVWriter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.Branched;
@@ -26,12 +26,15 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.Serializable;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 @Slf4j
 @Configuration
 public class KafkaStreamsConfig implements Serializable {
     @Autowired
     private FileStatusService fileStatusService;
+    @Autowired
+    private StatusCacheService statusCacheService;
 
     @Value("${spring.datasource.maxRetries}")
     private Integer maxRetries;
@@ -69,12 +72,14 @@ public class KafkaStreamsConfig implements Serializable {
                                                 File file = new File(classLoader.getResource(".").getFile() + value.getFileName());
                                                 if (file.exists()) {
                                                     fileStatusService.updateEntry(value.getId(),Status.FAILURE);
+                                                    statusCacheService.saveStatus(value.getId(),Status.FAILURE);
                                                 }
                                             return new KeyValue<>(key,value);
                                         },
                                         context -> {
                                             log.error("retries exhausted",context.getLastThrowable());
                                             fileStatusService.updateEntry(value.getId(),Status.ERROR);
+                                            statusCacheService.saveStatus(value.getId(),Status.ERROR);
                                             return new KeyValue<>(key,value);
                                         }
                                 )
@@ -97,7 +102,7 @@ public class KafkaStreamsConfig implements Serializable {
      * Retry a maximum of 1 time if exception occurs;
      */
     @Bean
-    public Consumer<KStream<String,Data>> consumer(@Qualifier("streamRetryTemplate") RetryTemplate retryTemplate)
+    public Function<KStream<String,Data>, KStream<String,Data>> consumer(@Qualifier("streamRetryTemplate") RetryTemplate retryTemplate)
     {
         return kStream -> kStream.map((key, value) ->
                         retryTemplate.execute(
@@ -114,6 +119,7 @@ public class KafkaStreamsConfig implements Serializable {
                                         CsvWriter.close();
                                         fileWriter.close();
                                         fileStatusService.updateEntry(value.getId(),Status.SUCCESS);
+                                        statusCacheService.saveStatus(value.getId(),Status.SUCCESS);
                                         return new KeyValue<>(key,value);
                                     }
                                     catch (Exception exception)
@@ -124,10 +130,11 @@ public class KafkaStreamsConfig implements Serializable {
                                 }, context -> {
                                     log.error("retries exhausted",context.getLastThrowable());
                                     fileStatusService.updateEntry(value.getId(),Status.ERROR);
+                                    statusCacheService.saveStatus(value.getId(),Status.ERROR);
                                     return new KeyValue<>(key,value);
                                 }
                                 )
-        ).filter((key, value) -> value != null).to("Notification",Produced.with(Serdes.String(), DataSerdes.DataSerde()));
+        ).filter((key, value) -> value != null);
 
     }
 

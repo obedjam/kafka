@@ -1,7 +1,6 @@
 package com.bankbazaar.kafka.service.service;
 
 import com.bankbazaar.kafka.core.manager.FileStatusManager;
-import com.bankbazaar.kafka.core.model.Data;
 import com.bankbazaar.kafka.core.model.FileStatusEntity;
 import com.bankbazaar.kafka.core.model.Status;
 import com.bankbazaar.kafka.dto.model.DataDto;

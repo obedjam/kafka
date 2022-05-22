@@ -1,9 +1,7 @@
 package com.bankbazaar.kafka.service.controller;
 
-import com.bankbazaar.kafka.core.repository.FileStatusRepository;
 import com.bankbazaar.kafka.dto.model.DataDto;
 import com.bankbazaar.kafka.service.model.Response;
-import com.bankbazaar.kafka.service.producer.KafkaProducer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.opencsv.CSVReader;
 import lombok.extern.slf4j.Slf4j;
@@ -33,12 +31,6 @@ public class KafkaControllerTest{
     @Autowired
     protected MockMvc mvc;
 
-    @Autowired
-    private FileStatusRepository fileStatusRepository;
-
-    @Autowired
-    private KafkaProducer kafkaProducer;
-
     @Test
     void userController() throws Exception {
         ClassLoader classLoader = getClass().getClassLoader();
@@ -54,6 +46,23 @@ public class KafkaControllerTest{
         Response responseData1 = consumeApi(dataDto1);
 
         /**
+         * Assert file test1.csv is created
+         * Validate contents
+         */
+        await().atMost(Durations.TEN_SECONDS).until(file1::exists);
+        validateTrue(responseData1, dataDto1, file1);
+
+        /**
+         * Create file object dataDto3
+         * Assert file test2.csv already exist
+         * Feed dataDto3 to controller
+         */
+        DataDto dataDto3 = createFileObject("test1.csv");
+        File file3 = new File(classLoader.getResource(".").getFile() + dataDto3.getFileName());
+        assertTrue(file3.exists());
+        consumeApi(dataDto3);
+
+        /**
          * Create file object dataDto2
          * Assert file test2.csv doesn't exist
          * Feed dataDto2 to controller
@@ -64,13 +73,6 @@ public class KafkaControllerTest{
         Response responseData2 = consumeApi(dataDto2);
 
         /**
-         * Assert file test1.csv is created
-         * Validate contents
-         */
-        await().atMost(Durations.TEN_SECONDS).until(file1::exists);
-        validateTrue(responseData1, dataDto1, file1);
-
-        /**
          * Assert file test2.csv is created
          * Validate contents
          */
@@ -78,21 +80,13 @@ public class KafkaControllerTest{
         validateTrue(responseData2, dataDto2, file2);
 
         /**
-         * Create file object dataDto3
-         * Assert file test2.csv already exist
-         * Feed dataDto3 to controller
-         */
-        DataDto dataDto3 = createFileObject("test2.csv");
-        File file3 = new File(classLoader.getResource(".").getFile() + dataDto3.getFileName());
-        assertTrue(file3.exists());
-        consumeApi(dataDto3);
-
-        /**
          * Create dataDto4 with empty fields
          * Validate 400 bad request response
          */
         DataDto dataDto4 = createBadFileObject();
         consumeBadApi(dataDto4);
+
+        Thread.sleep(1000);
 
         file1.delete();
         file2.delete();
