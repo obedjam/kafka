@@ -14,6 +14,9 @@ public class FileStatusService {
     @Autowired
     private FileStatusManager fileStatusManager;
 
+    @Autowired
+    private RedisUtil redisUtil;
+
     public FileStatusEntity insert(FileStatusEntity data)
     {
         return fileStatusManager.insert(data);
@@ -43,6 +46,17 @@ public class FileStatusService {
         fileData.setStatus(status);
         FileStatusEntity response = update(fileData);
         return response;
+    }
+    public Status getFileStatus(Long id)
+    {
+        Status status = (Status) redisUtil.getFromRedis(id);
+        if(status!=null)
+        {
+            return status;
+        }
+        status = getEntry(id).getStatus();
+        redisUtil.saveToRedis(id,status);
+        return status;
     }
 
 }

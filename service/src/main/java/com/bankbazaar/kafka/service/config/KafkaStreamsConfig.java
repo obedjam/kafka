@@ -3,7 +3,7 @@ package com.bankbazaar.kafka.service.config;
 import com.bankbazaar.kafka.core.model.Data;
 import com.bankbazaar.kafka.core.model.Status;
 import com.bankbazaar.kafka.service.service.FileStatusService;
-import com.bankbazaar.kafka.service.service.StatusCacheService;
+import com.bankbazaar.kafka.service.service.RedisUtil;
 import com.opencsv.CSVWriter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.serialization.Serdes;
@@ -34,7 +34,7 @@ public class KafkaStreamsConfig implements Serializable {
     @Autowired
     private FileStatusService fileStatusService;
     @Autowired
-    private StatusCacheService statusCacheService;
+    private RedisUtil redisUtil;
 
     @Value("${spring.datasource.maxRetries}")
     private Integer maxRetries;
@@ -72,14 +72,14 @@ public class KafkaStreamsConfig implements Serializable {
                                                 File file = new File(classLoader.getResource(".").getFile() + value.getFileName());
                                                 if (file.exists()) {
                                                     fileStatusService.updateEntry(value.getId(),Status.FAILURE);
-                                                    statusCacheService.saveStatus(value.getId(),Status.FAILURE);
+                                                    redisUtil.saveToRedis(value.getId(),Status.FAILURE);
                                                 }
                                             return new KeyValue<>(key,value);
                                         },
                                         context -> {
                                             log.error("retries exhausted",context.getLastThrowable());
                                             fileStatusService.updateEntry(value.getId(),Status.ERROR);
-                                            statusCacheService.saveStatus(value.getId(),Status.ERROR);
+                                            redisUtil.saveToRedis(value.getId(),Status.ERROR);
                                             return new KeyValue<>(key,value);
                                         }
                                 )
@@ -119,7 +119,7 @@ public class KafkaStreamsConfig implements Serializable {
                                         CsvWriter.close();
                                         fileWriter.close();
                                         fileStatusService.updateEntry(value.getId(),Status.SUCCESS);
-                                        statusCacheService.saveStatus(value.getId(),Status.SUCCESS);
+                                        redisUtil.saveToRedis(value.getId(),Status.SUCCESS);
                                         return new KeyValue<>(key,value);
                                     }
                                     catch (Exception exception)
@@ -130,7 +130,7 @@ public class KafkaStreamsConfig implements Serializable {
                                 }, context -> {
                                     log.error("retries exhausted",context.getLastThrowable());
                                     fileStatusService.updateEntry(value.getId(),Status.ERROR);
-                                    statusCacheService.saveStatus(value.getId(),Status.ERROR);
+                                    redisUtil.saveToRedis(value.getId(),Status.ERROR);
                                     return new KeyValue<>(key,value);
                                 }
                                 )
@@ -143,7 +143,7 @@ public class KafkaStreamsConfig implements Serializable {
     {
         return kStream -> kStream.foreach((key, value) ->
         {
-            log.info(fileStatusService.getEntry(value.getId()).getStatus().toString());
+            log.info(redisUtil.getFromRedis(value.getId()).toString());
         });
     }
 }
