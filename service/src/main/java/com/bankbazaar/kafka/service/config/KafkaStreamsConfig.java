@@ -3,6 +3,7 @@ package com.bankbazaar.kafka.service.config;
 import com.bankbazaar.kafka.core.model.Data;
 import com.bankbazaar.kafka.core.model.Status;
 import com.bankbazaar.kafka.service.service.FileStatusService;
+import com.bankbazaar.kafka.service.service.RedisUtil;
 import com.opencsv.CSVWriter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.serialization.Serdes;
@@ -16,7 +17,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.stream.annotation.StreamRetryTemplate;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.retry.RetryPolicy;
 import org.springframework.retry.backoff.FixedBackOffPolicy;
 import org.springframework.retry.policy.SimpleRetryPolicy;
@@ -25,7 +25,6 @@ import org.springframework.retry.support.RetryTemplate;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.Serializable;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -35,7 +34,7 @@ public class KafkaStreamsConfig implements Serializable {
     @Autowired
     private FileStatusService fileStatusService;
     @Autowired
-    private RedisTemplate redisTemplate;
+    private RedisUtil redisUtil;
 
     @Value("${spring.datasource.maxRetries}")
     private Integer maxRetries;
@@ -73,14 +72,14 @@ public class KafkaStreamsConfig implements Serializable {
                                                 File file = new File(classLoader.getResource(".").getFile() + value.getFileName());
                                                 if (file.exists()) {
                                                     fileStatusService.updateEntry(value.getId(),Status.FAILURE);
-                                                    redisTemplate.opsForValue().set(value.getId(),Status.FAILURE, 10, TimeUnit.SECONDS);
+                                                    redisUtil.saveToRedis(value.getId(),Status.FAILURE);
                                                 }
                                             return new KeyValue<>(key,value);
                                         },
                                         context -> {
                                             log.error("retries exhausted",context.getLastThrowable());
                                             fileStatusService.updateEntry(value.getId(),Status.ERROR);
-                                            redisTemplate.opsForValue().set(value.getId(),Status.ERROR, 10, TimeUnit.SECONDS);
+                                            redisUtil.saveToRedis(value.getId(),Status.ERROR);
                                             return new KeyValue<>(key,value);
                                         }
                                 )
@@ -120,7 +119,7 @@ public class KafkaStreamsConfig implements Serializable {
                                         CsvWriter.close();
                                         fileWriter.close();
                                         fileStatusService.updateEntry(value.getId(),Status.SUCCESS);
-                                        redisTemplate.opsForValue().set(value.getId(),Status.SUCCESS, 10, TimeUnit.SECONDS);
+                                        redisUtil.saveToRedis(value.getId(),Status.SUCCESS);
                                         return new KeyValue<>(key,value);
                                     }
                                     catch (Exception exception)
@@ -131,7 +130,7 @@ public class KafkaStreamsConfig implements Serializable {
                                 }, context -> {
                                     log.error("retries exhausted",context.getLastThrowable());
                                     fileStatusService.updateEntry(value.getId(),Status.ERROR);
-                                    redisTemplate.opsForValue().set(value.getId(),Status.ERROR, 10, TimeUnit.SECONDS);
+                                    redisUtil.saveToRedis(value.getId(),Status.ERROR);
                                     return new KeyValue<>(key,value);
                                 }
                                 )
@@ -144,7 +143,7 @@ public class KafkaStreamsConfig implements Serializable {
     {
         return kStream -> kStream.foreach((key, value) ->
         {
-            log.info(fileStatusService.getEntry(value.getId()).getStatus().toString());
+            log.info(redisUtil.getFromRedis(value.getId()).toString());
         });
     }
 }

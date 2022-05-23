@@ -6,10 +6,7 @@ import com.bankbazaar.kafka.core.model.Status;
 import com.bankbazaar.kafka.dto.model.DataDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
-
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -18,7 +15,7 @@ public class FileStatusService {
     private FileStatusManager fileStatusManager;
 
     @Autowired
-    private RedisTemplate redisTemplate;
+    private RedisUtil redisUtil;
 
     public FileStatusEntity insert(FileStatusEntity data)
     {
@@ -50,15 +47,15 @@ public class FileStatusService {
         FileStatusEntity response = update(fileData);
         return response;
     }
-    public Status getFromCache(Long id)
+    public Status getFileStatus(Long id)
     {
-        Status status = (Status) redisTemplate.opsForValue().get(id);
+        Status status = (Status) redisUtil.getFromRedis(id);
         if(status!=null)
         {
             return status;
         }
         status = getEntry(id).getStatus();
-        redisTemplate.opsForValue().set(id, status, 10, TimeUnit.SECONDS);
+        redisUtil.saveToRedis(id,status);
         return status;
     }
 

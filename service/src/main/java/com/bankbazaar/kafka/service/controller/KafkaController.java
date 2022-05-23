@@ -34,7 +34,7 @@ public class KafkaController {
     @RequestMapping(method = RequestMethod.GET)
     public ResponseEntity<Status> getStatusFromCache(@Valid @RequestParam Long id)
     {
-        Status response = fileStatusService.getFromCache(id);
+        Status response = fileStatusService.getFileStatus(id);
         return new ResponseEntity<>(response,HttpStatus.OK);
     }
 }
