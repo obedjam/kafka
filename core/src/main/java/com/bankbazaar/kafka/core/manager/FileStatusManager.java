@@ -1,6 +1,7 @@
 package com.bankbazaar.kafka.core.manager;
 
 import com.bankbazaar.kafka.core.model.FileStatusEntity;
+import com.bankbazaar.kafka.core.model.Status;
 import com.bankbazaar.kafka.core.repository.FileStatusRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -33,5 +34,14 @@ public class FileStatusManager {
     public Optional<FileStatusEntity> getEntry(Long id)
     {
         return fileStatusRepository.findById(id);
+    }
+    public Status getEntry(String name)
+    {
+        FileStatusEntity response = fileStatusRepository.findByFileName(name);
+        if(response==null)
+        {
+            return Status.NULL;
+        }
+        return response.getStatus();
     }
 }

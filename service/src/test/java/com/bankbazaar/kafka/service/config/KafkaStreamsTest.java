@@ -1,7 +1,7 @@
 package com.bankbazaar.kafka.service.config;
 
 import com.bankbazaar.kafka.dto.model.DataDto;
-import com.bankbazaar.kafka.service.producer.KafkaProducer;
+import com.bankbazaar.kafka.service.service.producer.KafkaProducer;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.bankbazaar.kafka.service.controller.KafkaControllerTest;

@@ -16,7 +16,7 @@ public class FileStatusEntity {
     @GeneratedValue
     private Long id;
 
-    @Column(name="file_name",nullable = false)
+    @Column(name="fileName",nullable = false)
     private String fileName;
 
     @Column(name = "status", nullable = false)

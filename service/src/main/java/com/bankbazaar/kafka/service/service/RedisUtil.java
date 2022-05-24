@@ -14,7 +14,7 @@ public class RedisUtil {
 
     public void saveToRedis(Long id, Status status)
     {
-        redisTemplate.opsForValue().set(id, status, 10, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set(id, status, 5, TimeUnit.SECONDS);
     }
 
     public Status getFromRedis(Long id)

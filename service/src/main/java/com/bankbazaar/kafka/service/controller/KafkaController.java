@@ -3,7 +3,7 @@ package com.bankbazaar.kafka.service.controller;
 import com.bankbazaar.kafka.core.model.Status;
 import com.bankbazaar.kafka.dto.model.DataDto;
 import com.bankbazaar.kafka.service.model.Response;
-import com.bankbazaar.kafka.service.producer.KafkaProducer;
+import com.bankbazaar.kafka.service.service.producer.KafkaProducer;
 import com.bankbazaar.kafka.service.service.FileStatusService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -32,9 +32,16 @@ public class KafkaController {
     }
 
     @RequestMapping(method = RequestMethod.GET)
-    public ResponseEntity<Status> getStatusFromCache(@Valid @RequestParam Long id)
+    public ResponseEntity<Status> getStatus(@RequestParam Long id)
     {
         Status response = fileStatusService.getFileStatus(id);
+        return new ResponseEntity<>(response,HttpStatus.OK);
+    }
+
+    @RequestMapping(value = "name", method = RequestMethod.GET)
+    public ResponseEntity<Status> getStatusByName(@RequestParam String name)
+    {
+        Status response = fileStatusService.getStatusByName(name);
         return new ResponseEntity<>(response,HttpStatus.OK);
     }
 }

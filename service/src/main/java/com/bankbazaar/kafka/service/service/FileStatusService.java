@@ -6,10 +6,13 @@ import com.bankbazaar.kafka.core.model.Status;
 import com.bankbazaar.kafka.dto.model.DataDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
+@EnableCaching
 public class FileStatusService {
     @Autowired
     private FileStatusManager fileStatusManager;
@@ -39,6 +42,11 @@ public class FileStatusService {
     {
         return fileStatusManager.getEntry(id).get();
     }
+    @Cacheable(key = "#name", value = "StatusCache")
+    public Status getStatusByName(String name)
+    {
+        return fileStatusManager.getEntry(name);
+    }
     public FileStatusEntity updateEntry(Long id, Status status)
     {
         FileStatusEntity fileData = new FileStatusEntity();
@@ -58,5 +66,4 @@ public class FileStatusService {
         redisUtil.saveToRedis(id,status);
         return status;
     }
-
 }

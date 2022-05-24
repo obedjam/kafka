@@ -1,6 +1,7 @@
 package com.bankbazaar.kafka.service.controller;
 
 import com.bankbazaar.kafka.core.model.Status;
+import com.bankbazaar.kafka.core.repository.FileStatusRepository;
 import com.bankbazaar.kafka.dto.model.DataDto;
 import com.bankbazaar.kafka.service.model.Response;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -18,6 +20,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import java.io.File;
 import java.io.FileReader;
+import java.util.function.BooleanSupplier;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
@@ -33,9 +36,17 @@ public class KafkaControllerTest{
     @Autowired
     protected MockMvc mvc;
 
+    @Autowired
+    private CacheManager cacheManager;
+
+    @Autowired
+    private FileStatusRepository fileStatusRepository;
+
     @Test
     void userController() throws Exception {
         ClassLoader classLoader = getClass().getClassLoader();
+
+        assertEquals(consumeApi("test2.csv"), Status.NULL);
 
         /**
          * Create file object dataDto1
@@ -82,6 +93,8 @@ public class KafkaControllerTest{
         await().atMost(Durations.TEN_SECONDS).until(file2::exists);
         validateTrue(dataDto2, file2);
         assertEquals(consumeApi(responseData2.getExecutionId()), Status.SUCCESS);
+        await().atMost(Durations.TEN_SECONDS).until(()->consumeApi("test2.csv").equals(Status.SUCCESS));
+        assertNotNull(cacheManager.getCache("StatusCache"));
 
         /**
          * Create dataDto4 with empty fields
@@ -90,9 +103,15 @@ public class KafkaControllerTest{
         DataDto dataDto4 = createBadFileObject();
         consumeBadApi(dataDto4);
 
-        Thread.sleep(10000);
+        Thread.sleep(5000);
         assertEquals(consumeApi(responseData1.getExecutionId()), Status.SUCCESS);
         assertEquals(consumeApi(responseData2.getExecutionId()), Status.SUCCESS);
+
+        assertEquals(consumeApi("test2.csv"), Status.SUCCESS);
+        fileStatusRepository.deleteAll();
+        assertEquals(consumeApi("test2.csv"), Status.SUCCESS);
+
+        await().atMost(Durations.TEN_SECONDS).until(()->consumeApi("test2.csv").equals(Status.NULL));
 
         file1.delete();
         file2.delete();
@@ -136,6 +155,15 @@ public class KafkaControllerTest{
         Status data = objectMapper.readValue(response.getResponse().getContentAsString(), Status.class);
         return data;
     }
+
+    private Status consumeApi(String name) throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        MvcResult response = mvc.perform(get("/name?name="+name))
+                .andExpect(status().is(200)).andReturn();
+
+        Status data = objectMapper.readValue(response.getResponse().getContentAsString(), Status.class);
+        return data;
+    }
     private void consumeBadApi(DataDto dataDto) throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         mvc.perform(post("/")
@@ -160,5 +188,9 @@ public class KafkaControllerTest{
         }
         assertEquals(i,dataDto.getData().length);
 
+    }
+
+    public boolean checkStatus(Response response, Status status) throws Exception {
+        return consumeApi(response.getExecutionId()).equals(Status.SUCCESS);
     }
 }
