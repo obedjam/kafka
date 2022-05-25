@@ -1,6 +1,7 @@
 package com.bankbazaar.kafka.service.controller;
 
 import com.bankbazaar.kafka.core.model.Status;
+import com.bankbazaar.kafka.core.repository.FileStatusRepository;
 import com.bankbazaar.kafka.dto.model.DataDto;
 import com.bankbazaar.kafka.service.model.Response;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,10 +34,15 @@ public class KafkaControllerTest{
     @Autowired
     protected MockMvc mvc;
 
+    @Autowired
+    private FileStatusRepository fileStatusRepository;
+
     @Test
     void userController() throws Exception {
         ClassLoader classLoader = getClass().getClassLoader();
 
+        consumeBadApi(1L);
+        consumeBadApi("test2.csv");
         /**
          * Create file object dataDto1
          * Assert file test1.csv doesn't exist
@@ -50,6 +56,7 @@ public class KafkaControllerTest{
         /**
          * Assert file test1.csv is created
          * Validate contents
+         * Assert status is SUCCESS
          */
         await().atMost(Durations.TEN_SECONDS).until(file1::exists);
         validateTrue(dataDto1, file1);
@@ -78,10 +85,12 @@ public class KafkaControllerTest{
         /**
          * Assert file test2.csv is created
          * Validate contents
+         * Assert status is SUCCESS
          */
         await().atMost(Durations.TEN_SECONDS).until(file2::exists);
         validateTrue(dataDto2, file2);
         assertEquals(consumeApi(responseData2.getExecutionId()), Status.SUCCESS);
+        assertEquals(consumeApi("test2.csv"), Status.SUCCESS);
 
         /**
          * Create dataDto4 with empty fields
@@ -90,9 +99,13 @@ public class KafkaControllerTest{
         DataDto dataDto4 = createBadFileObject();
         consumeBadApi(dataDto4);
 
-        Thread.sleep(10000);
-        assertEquals(consumeApi(responseData1.getExecutionId()), Status.SUCCESS);
-        assertEquals(consumeApi(responseData2.getExecutionId()), Status.SUCCESS);
+        /**
+         * Verify that status is fetched from DB after cache entry times out
+         */
+        await().atLeast(Durations.FIVE_SECONDS).until(()->consumeApi(responseData1.getExecutionId()).equals(Status.SUCCESS));
+        await().atLeast(Durations.FIVE_SECONDS).until(()->consumeApi(responseData2.getExecutionId()).equals(Status.SUCCESS));
+
+        fileStatusRepository.deleteAll();
 
         file1.delete();
         file2.delete();
@@ -117,6 +130,8 @@ public class KafkaControllerTest{
         return dataDto;
     }
 
+
+
     private Response consumeApi(DataDto dataDto) throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         MvcResult response = mvc.perform(post("/")
@@ -136,6 +151,18 @@ public class KafkaControllerTest{
         Status data = objectMapper.readValue(response.getResponse().getContentAsString(), Status.class);
         return data;
     }
+
+    private Status consumeApi(String name) throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        MvcResult response = mvc.perform(get("/name?name="+name))
+                .andExpect(status().is(200)).andReturn();
+
+        Status data = objectMapper.readValue(response.getResponse().getContentAsString(), Status.class);
+        return data;
+    }
+
+
+
     private void consumeBadApi(DataDto dataDto) throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         mvc.perform(post("/")
@@ -143,6 +170,20 @@ public class KafkaControllerTest{
                         .content(objectMapper.writeValueAsBytes(dataDto)))
                 .andExpect(status().is(400));
     }
+
+    private void consumeBadApi(Long id) throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        MvcResult response = mvc.perform(get("/?id="+id.toString()))
+                .andExpect(status().is(404)).andReturn();
+    }
+
+    private void consumeBadApi(String name) throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        MvcResult response = mvc.perform(get("/name?name="+name))
+                .andExpect(status().is(404)).andReturn();
+    }
+
+
 
     private void validateTrue(DataDto dataDto, File fileCsv) throws Exception {
         FileReader filereader = new FileReader(fileCsv);

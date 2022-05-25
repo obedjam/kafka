@@ -1,4 +1,4 @@
-package com.bankbazaar.kafka.service.producer;
+package com.bankbazaar.kafka.service.service.producer;
 
 import com.bankbazaar.kafka.core.model.Data;
 import com.bankbazaar.kafka.core.model.FileStatusEntity;

@@ -39,6 +39,10 @@ public class FileStatusService {
     {
         return fileStatusManager.getEntry(id).get();
     }
+    public Status getStatusByName(String name)
+    {
+        return fileStatusManager.getEntry(name);
+    }
     public FileStatusEntity updateEntry(Long id, Status status)
     {
         FileStatusEntity fileData = new FileStatusEntity();
@@ -58,5 +62,4 @@ public class FileStatusService {
         redisUtil.saveToRedis(id,status);
         return status;
     }
-
 }

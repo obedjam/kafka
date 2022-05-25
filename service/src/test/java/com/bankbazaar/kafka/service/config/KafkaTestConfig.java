@@ -5,12 +5,12 @@ import com.bankbazaar.kafka.core.model.Data;
 import com.bankbazaar.kafka.core.model.Status;
 import com.bankbazaar.kafka.service.service.FileStatusService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.kafka.annotation.KafkaListener;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@Configuration
-public class KafkaTestConfig {
+@TestConfiguration
+public class KafkaTestConfig{
 
     @Autowired
     private FileStatusService fileStatusService;
