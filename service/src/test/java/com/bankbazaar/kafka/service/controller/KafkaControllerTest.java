@@ -41,6 +41,8 @@ public class KafkaControllerTest{
     void userController() throws Exception {
         ClassLoader classLoader = getClass().getClassLoader();
 
+        consumeBadApi(1L);
+        consumeBadApi("test2.csv");
         /**
          * Create file object dataDto1
          * Assert file test1.csv doesn't exist
@@ -88,6 +90,7 @@ public class KafkaControllerTest{
         await().atMost(Durations.TEN_SECONDS).until(file2::exists);
         validateTrue(dataDto2, file2);
         assertEquals(consumeApi(responseData2.getExecutionId()), Status.SUCCESS);
+        assertEquals(consumeApi("test2.csv"), Status.SUCCESS);
 
         /**
          * Create dataDto4 with empty fields
@@ -127,6 +130,8 @@ public class KafkaControllerTest{
         return dataDto;
     }
 
+
+
     private Response consumeApi(DataDto dataDto) throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         MvcResult response = mvc.perform(post("/")
@@ -147,6 +152,16 @@ public class KafkaControllerTest{
         return data;
     }
 
+    private Status consumeApi(String name) throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        MvcResult response = mvc.perform(get("/name?name="+name))
+                .andExpect(status().is(200)).andReturn();
+
+        Status data = objectMapper.readValue(response.getResponse().getContentAsString(), Status.class);
+        return data;
+    }
+
+
 
     private void consumeBadApi(DataDto dataDto) throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
@@ -155,6 +170,20 @@ public class KafkaControllerTest{
                         .content(objectMapper.writeValueAsBytes(dataDto)))
                 .andExpect(status().is(400));
     }
+
+    private void consumeBadApi(Long id) throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        MvcResult response = mvc.perform(get("/?id="+id.toString()))
+                .andExpect(status().is(404)).andReturn();
+    }
+
+    private void consumeBadApi(String name) throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        MvcResult response = mvc.perform(get("/name?name="+name))
+                .andExpect(status().is(404)).andReturn();
+    }
+
+
 
     private void validateTrue(DataDto dataDto, File fileCsv) throws Exception {
         FileReader filereader = new FileReader(fileCsv);
@@ -172,9 +201,5 @@ public class KafkaControllerTest{
         }
         assertEquals(i,dataDto.getData().length);
 
-    }
-
-    public boolean checkStatus(Response response, Status status) throws Exception {
-        return consumeApi(response.getExecutionId()).equals(Status.SUCCESS);
     }
 }
