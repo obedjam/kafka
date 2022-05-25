@@ -42,6 +42,10 @@ public class KafkaController {
     public ResponseEntity<Status> getStatusByName(@RequestParam String name)
     {
         Status response = fileStatusService.getStatusByName(name);
+        if(response==null)
+        {
+            return new ResponseEntity<>(null,HttpStatus.NOT_FOUND);
+        }
         return new ResponseEntity<>(response,HttpStatus.OK);
     }
 }

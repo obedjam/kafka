@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 public class RedisUtil {
-    @Value("${spring.datasource.timeToLive}")
+    @Value("${fileStatus.cache.expiry.inSeconds}")
     private Long timeToLive;
     @Autowired
     private RedisTemplate redisTemplate;

@@ -12,7 +12,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -36,19 +35,11 @@ public class KafkaControllerTest{
     protected MockMvc mvc;
 
     @Autowired
-    private CacheManager cacheManager;
-
-    @Autowired
     private FileStatusRepository fileStatusRepository;
 
     @Test
     void userController() throws Exception {
         ClassLoader classLoader = getClass().getClassLoader();
-
-        /**
-         * controller returns null before any db entry
-         */
-        assertNull(consumeApi("test2.csv"));
 
         /**
          * Create file object dataDto1
@@ -99,13 +90,6 @@ public class KafkaControllerTest{
         assertEquals(consumeApi(responseData2.getExecutionId()), Status.SUCCESS);
 
         /**
-         * Verify Status from DB and cache to redis
-         * Verify Cache StatusCache is deployed
-         */
-        await().atMost(Durations.TEN_SECONDS).until(()->consumeApi("test2.csv").equals(Status.SUCCESS));
-        assertNotNull(cacheManager.getCache("StatusCache"));
-
-        /**
          * Create dataDto4 with empty fields
          * Validate 400 bad request response
          */
@@ -115,22 +99,10 @@ public class KafkaControllerTest{
         /**
          * Verify that status is fetched from DB after cache entry times out
          */
-        await().atMost(Durations.TEN_SECONDS).until(()->consumeApi(responseData1.getExecutionId()).equals(Status.SUCCESS));
-        await().atMost(Durations.TEN_SECONDS).until(()->consumeApi(responseData2.getExecutionId()).equals(Status.SUCCESS));
+        await().atLeast(Durations.FIVE_SECONDS).until(()->consumeApi(responseData1.getExecutionId()).equals(Status.SUCCESS));
+        await().atLeast(Durations.FIVE_SECONDS).until(()->consumeApi(responseData2.getExecutionId()).equals(Status.SUCCESS));
 
-        /**
-         * Verify status from DB and cache to redis
-         * Clear DB
-         * Verify status from cache
-         */
-        assertEquals(consumeApi("test2.csv"), Status.SUCCESS);
         fileStatusRepository.deleteAll();
-        assertEquals(consumeApi("test2.csv"), Status.SUCCESS);
-
-        /**
-         * Verify controller returns null after cache entry times out
-         */
-        await().atMost(Durations.TEN_SECONDS).until(()-> consumeApi("test2.csv") == null);
 
         file1.delete();
         file2.delete();
@@ -175,14 +147,7 @@ public class KafkaControllerTest{
         return data;
     }
 
-    private Status consumeApi(String name) throws Exception {
-        ObjectMapper objectMapper = new ObjectMapper();
-        MvcResult response = mvc.perform(get("/name?name="+name))
-                .andExpect(status().is(200)).andReturn();
 
-        Status data = objectMapper.readValue(response.getResponse().getContentAsString(), Status.class);
-        return data;
-    }
     private void consumeBadApi(DataDto dataDto) throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         mvc.perform(post("/")

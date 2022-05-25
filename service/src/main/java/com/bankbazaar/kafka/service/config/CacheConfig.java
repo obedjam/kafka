@@ -11,7 +11,7 @@ import java.time.Duration;
 @Configuration
 @EnableCaching
 public class CacheConfig {
-    @Value("${spring.datasource.timeToLive}")
+    @Value("${fileStatus.cache.expiry.inSeconds}")
     private Long timeToLive;
     @Bean
     public RedisCacheManagerBuilderCustomizer redisCacheManagerBuilderCustomizer() {

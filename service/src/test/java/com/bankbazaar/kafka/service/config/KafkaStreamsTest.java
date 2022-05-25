@@ -15,7 +15,6 @@ public class KafkaStreamsTest extends KafkaControllerTest{
     void sendData() throws InterruptedException {
         DataDto dataDto = createFileObject("");
         kafkaProducer.sendData(dataDto);
-        Thread.sleep(1000);
     }
 
     private DataDto createFileObject(String fileName)
