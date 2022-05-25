@@ -20,7 +20,6 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import java.io.File;
 import java.io.FileReader;
-import java.util.function.BooleanSupplier;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
@@ -46,7 +45,10 @@ public class KafkaControllerTest{
     void userController() throws Exception {
         ClassLoader classLoader = getClass().getClassLoader();
 
-        assertEquals(consumeApi("test2.csv"), Status.NULL);
+        /**
+         * controller returns null before any db entry
+         */
+        assertNull(consumeApi("test2.csv"));
 
         /**
          * Create file object dataDto1
@@ -61,6 +63,7 @@ public class KafkaControllerTest{
         /**
          * Assert file test1.csv is created
          * Validate contents
+         * Assert status is SUCCESS
          */
         await().atMost(Durations.TEN_SECONDS).until(file1::exists);
         validateTrue(dataDto1, file1);
@@ -89,10 +92,16 @@ public class KafkaControllerTest{
         /**
          * Assert file test2.csv is created
          * Validate contents
+         * Assert status is SUCCESS
          */
         await().atMost(Durations.TEN_SECONDS).until(file2::exists);
         validateTrue(dataDto2, file2);
         assertEquals(consumeApi(responseData2.getExecutionId()), Status.SUCCESS);
+
+        /**
+         * Verify Status from DB and cache to redis
+         * Verify Cache StatusCache is deployed
+         */
         await().atMost(Durations.TEN_SECONDS).until(()->consumeApi("test2.csv").equals(Status.SUCCESS));
         assertNotNull(cacheManager.getCache("StatusCache"));
 
@@ -103,15 +112,25 @@ public class KafkaControllerTest{
         DataDto dataDto4 = createBadFileObject();
         consumeBadApi(dataDto4);
 
-        Thread.sleep(5000);
-        assertEquals(consumeApi(responseData1.getExecutionId()), Status.SUCCESS);
-        assertEquals(consumeApi(responseData2.getExecutionId()), Status.SUCCESS);
+        /**
+         * Verify that status is fetched from DB after cache entry times out
+         */
+        await().atMost(Durations.TEN_SECONDS).until(()->consumeApi(responseData1.getExecutionId()).equals(Status.SUCCESS));
+        await().atMost(Durations.TEN_SECONDS).until(()->consumeApi(responseData2.getExecutionId()).equals(Status.SUCCESS));
 
+        /**
+         * Verify status from DB and cache to redis
+         * Clear DB
+         * Verify status from cache
+         */
         assertEquals(consumeApi("test2.csv"), Status.SUCCESS);
         fileStatusRepository.deleteAll();
         assertEquals(consumeApi("test2.csv"), Status.SUCCESS);
 
-        await().atMost(Durations.TEN_SECONDS).until(()->consumeApi("test2.csv").equals(Status.NULL));
+        /**
+         * Verify controller returns null after cache entry times out
+         */
+        await().atMost(Durations.TEN_SECONDS).until(()-> consumeApi("test2.csv") == null);
 
         file1.delete();
         file2.delete();

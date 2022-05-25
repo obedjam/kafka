@@ -1,4 +1,5 @@
 package com.bankbazaar.kafka.service.config;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.cache.RedisCacheManagerBuilderCustomizer;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -10,11 +11,12 @@ import java.time.Duration;
 @Configuration
 @EnableCaching
 public class CacheConfig {
-
+    @Value("${spring.datasource.timeToLive}")
+    private Long timeToLive;
     @Bean
     public RedisCacheManagerBuilderCustomizer redisCacheManagerBuilderCustomizer() {
         return (builder) -> builder
                 .withCacheConfiguration("StatusCache",
-                        RedisCacheConfiguration.defaultCacheConfig().entryTtl(Duration.ofSeconds(5)));
+                        RedisCacheConfiguration.defaultCacheConfig().entryTtl(Duration.ofSeconds(timeToLive)));
     }
 }

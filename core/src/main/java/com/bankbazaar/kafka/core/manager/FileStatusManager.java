@@ -37,11 +37,11 @@ public class FileStatusManager {
     }
     public Status getEntry(String name)
     {
-        FileStatusEntity response = fileStatusRepository.findByFileName(name);
-        if(response==null)
+        Optional<FileStatusEntity> response = fileStatusRepository.findByFileName(name);
+        if(response.isEmpty())
         {
-            return Status.NULL;
+            return null;
         }
-        return response.getStatus();
+        return response.get().getStatus();
     }
 }
