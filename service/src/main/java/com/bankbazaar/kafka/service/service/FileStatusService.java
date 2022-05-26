@@ -8,6 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 @Slf4j
 @Service
 public class FileStatusService {
@@ -24,7 +26,15 @@ public class FileStatusService {
 
     public FileStatusEntity update(FileStatusEntity data)
     {
-        return fileStatusManager.update(data);
+        FileStatusEntity presentData = getEntry(data.getId());
+        FileStatusEntity newData = new FileStatusEntity();
+        if(presentData!=null)
+        {
+            newData.setId(presentData.getId());
+            newData.setFileName(presentData.getFileName());
+            newData.setStatus(data.getStatus());
+        }
+        return fileStatusManager.update(newData);
     }
 
     public FileStatusEntity createEntry(DataDto data)

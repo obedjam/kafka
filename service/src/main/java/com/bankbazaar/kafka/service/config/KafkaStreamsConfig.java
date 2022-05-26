@@ -31,6 +31,8 @@ import java.util.function.Function;
 @Slf4j
 @Configuration
 public class KafkaStreamsConfig implements Serializable {
+
+    private static final long serialVersionUID = -5557932117156291482L;
     @Autowired
     private FileStatusService fileStatusService;
     @Autowired
