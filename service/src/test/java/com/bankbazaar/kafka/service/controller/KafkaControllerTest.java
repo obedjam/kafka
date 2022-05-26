@@ -4,6 +4,7 @@ import com.bankbazaar.kafka.core.model.Status;
 import com.bankbazaar.kafka.core.repository.FileStatusRepository;
 import com.bankbazaar.kafka.dto.model.DataDto;
 import com.bankbazaar.kafka.service.model.Response;
+import com.bankbazaar.kafka.service.service.FileStatusService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.opencsv.CSVReader;
 import lombok.extern.slf4j.Slf4j;
@@ -35,14 +36,13 @@ public class KafkaControllerTest{
     protected MockMvc mvc;
 
     @Autowired
+    private FileStatusService fileStatusService;
+    @Autowired
     private FileStatusRepository fileStatusRepository;
 
     @Test
     void userController() throws Exception {
         ClassLoader classLoader = getClass().getClassLoader();
-
-        consumeBadApi(1L);
-        consumeBadApi("test2.csv");
         /**
          * Create file object dataDto1
          * Assert file test1.csv doesn't exist
@@ -102,8 +102,8 @@ public class KafkaControllerTest{
         /**
          * Verify that status is fetched from DB after cache entry times out
          */
-        await().atLeast(Durations.FIVE_SECONDS).until(()->consumeApi(responseData1.getExecutionId()).equals(Status.SUCCESS));
-        await().atLeast(Durations.FIVE_SECONDS).until(()->consumeApi(responseData2.getExecutionId()).equals(Status.SUCCESS));
+        await().atMost(Durations.TEN_SECONDS).until(()->consumeApi(responseData1.getExecutionId()).equals(Status.SUCCESS));
+        await().atMost(Durations.TEN_SECONDS).until(()->consumeApi(responseData2.getExecutionId()).equals(Status.SUCCESS));
 
         fileStatusRepository.deleteAll();
 
@@ -161,8 +161,6 @@ public class KafkaControllerTest{
         return data;
     }
 
-
-
     private void consumeBadApi(DataDto dataDto) throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         mvc.perform(post("/")
@@ -170,20 +168,6 @@ public class KafkaControllerTest{
                         .content(objectMapper.writeValueAsBytes(dataDto)))
                 .andExpect(status().is(400));
     }
-
-    private void consumeBadApi(Long id) throws Exception {
-        ObjectMapper objectMapper = new ObjectMapper();
-        MvcResult response = mvc.perform(get("/?id="+id.toString()))
-                .andExpect(status().is(404)).andReturn();
-    }
-
-    private void consumeBadApi(String name) throws Exception {
-        ObjectMapper objectMapper = new ObjectMapper();
-        MvcResult response = mvc.perform(get("/name?name="+name))
-                .andExpect(status().is(404)).andReturn();
-    }
-
-
 
     private void validateTrue(DataDto dataDto, File fileCsv) throws Exception {
         FileReader filereader = new FileReader(fileCsv);

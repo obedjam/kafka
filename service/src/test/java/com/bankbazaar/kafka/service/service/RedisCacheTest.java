@@ -4,7 +4,6 @@ import com.bankbazaar.kafka.core.manager.FileStatusManager;
 import com.bankbazaar.kafka.core.model.FileStatusEntity;
 import com.bankbazaar.kafka.core.model.Status;
 import com.bankbazaar.kafka.core.repository.FileStatusRepository;
-import com.bankbazaar.kafka.service.mapper.DataMapper;
 import org.awaitility.Durations;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,8 +29,6 @@ public class RedisCacheTest {
     private FileStatusRepository fileStatusRepository;
     @Autowired
     private FileStatusManager fileStatusManager;
-    @Autowired
-    private DataMapper mapper;
 
     @Test
     void redisCacheTest() throws Exception {

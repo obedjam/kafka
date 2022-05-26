@@ -27,15 +27,7 @@ public class FileStatusManager {
     @CacheEvict(key = "#data.fileName", value = "StatusCache")
     public FileStatusEntity update(FileStatusEntity data)
     {
-        Optional<FileStatusEntity> presentData = fileStatusRepository.findById(data.getId());
-        FileStatusEntity newData = new FileStatusEntity();
-        if(presentData.isPresent())
-        {
-            newData.setId(presentData.get().getId());
-            newData.setFileName(presentData.get().getFileName());
-            newData.setStatus(data.getStatus());
-        }
-        return fileStatusRepository.save(newData);
+        return fileStatusRepository.save(data);
     }
     public Optional<FileStatusEntity> getEntry(Long id)
     {
